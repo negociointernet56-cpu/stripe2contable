@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertir CSV de Stripe a Contabilidad para Autónomos - Stripe2Contable</title>
+    <!-- Etiqueta SEO para Google -->
+    <meta name="description" content="Convierte tus cobros y CSV de Stripe al formato contable para autónomos en España de forma rápida, privada y sin complicaciones.">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse CDN para lectura de CSV robusta -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans flex flex-col min-h-screen">
+
+    <!-- Header / Navegación -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-lg flex items-center justify-center w-10 h-10 shadow-sm">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <span class="font-bold text-slate-900 text-lg tracking-tight">Stripe2Contable <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold ml-1">Autónomos España</span></span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="#faq" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition">FAQ</a>
+                <a href="#seguridad" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition">Seguridad</a>
+                <a href="https://buy.stripe.com/dRmdRa9caeAV1hQbR2enS02" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm transition">Obtener Pase 24h</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notificación flotante de Pase Activo -->
+    <div id="activePassBanner" class="hidden bg-emerald-600 text-white text-xs font-medium py-2 px-4 text-center">
+        <i class="fa-solid fa-circle-check mr-1"></i> ¡Pase ilimitado de 24 horas activo en este navegador! Puedes convertir todos los archivos que necesites.
+    </div>
+
+    <!-- Hero Section -->
+    <main class="flex-grow">
+        <section class="max-w-4xl mx-auto px-4 pt-12 pb-8 text-center">
+            <span class="inline-flex items-center gap-1.5 py-1 px-3 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-4">
+                <i class="fa-solid fa-shield-halved"></i> 100% Privado: Tus datos no salen de tu ordenador
+            </span>
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
+                Convierte tus cobros de Stripe al formato contable de tu gestor
+            </h1>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+                Transforma el CSV oficial de Stripe en un formato limpio y compatible para libros de ingresos y gastos adaptado a autónomos en España en cuestión de segundos.
+            </p>
+        </section>
+
+        <!-- Aplicación Principal (Tool Interface) -->
+        <section class="max-w-3xl mx-auto px-4 mb-16">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 sm:p-8">
+                
+                <!-- Dropzone Area -->
+                <div id="dropzone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-indigo-500 transition cursor-pointer bg-slate-50/50 relative">
+                    <input type="file" id="csvFileInput" accept=".csv" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                    <div class="flex flex-col items-center justify-center space-y-3">
+                        <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <div class="text-slate-700 font-medium">
+                            <span class="text-indigo-600 font-semibold hover:underline">Haz clic para buscar</span> o arrastra tu archivo CSV de Stripe aquí
+                        </div>
+                        <p class="text-xs text-slate-400">Soporta archivos .csv exportados directamente desde el Dashboard de Stripe</p>
+                    </div>
+                </div>
+
+                <!-- Nombre del archivo seleccionado -->
+                <div id="fileInfo" class="hidden mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-file-csv text-2xl text-emerald-600"></i>
+                        <div>
+                            <p id="fileName" class="text-sm font-semibold text-slate-800">archivo.csv</p>
+                            <p id="fileRows" class="text-xs text-slate-500">Analizando filas...</p>
+                        </div>
+                    </div>
+                    <button id="removeFile" class="text-slate-400 hover:text-red-500 text-sm font-medium transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Contenedor de Resultados / Estado Freemium -->
+                <div id="resultContainer" class="hidden mt-6 space-y-4">
+                    
+                    <!-- Estado: Descarga permitida (<=5 filas O Pase de 24h activo) -->
+                    <div id="freeSuccessBox" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div class="flex items-start space-x-3">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-xl mt-0.5"></i>
+                            <div class="flex-grow">
+                                <h3 id="successTitle" class="text-sm font-bold text-emerald-900">¡Conversión exitosa!</h3>
+                                <p id="successDesc" class="text-xs text-emerald-700 mt-0.5">Puedes descargar tu archivo contable ahora mismo.</p>
+                                <button id="downloadBtn" class="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-2">
+                                    <i class="fa-solid fa-download"></i> Descargar CSV Contable
+                                </button>
+                                <!-- Nota informativa de ayuda para Excel -->
+                                <p class="text-[11px] text-emerald-800/80 mt-2.5 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-info"></i> Si al abrirlo en Excel ves todo en una columna, ábrelo con Google Sheets o impórtalo desde <strong>Datos > Desde texto/CSV</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estado: Bloqueo Freemium (> 5 filas sin pase activo) -->
+                    <div id="paywallBox" class="hidden p-6 bg-amber-50 border border-amber-200 rounded-xl text-center space-y-4">
+                        <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto text-xl">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-amber-900">Límite de la versión gratuita superado</h3>
+                            <p class="text-sm text-amber-700 mt-1 max-w-md mx-auto">
+                                Tu archivo tiene más de 5 filas. Desbloquea un <strong>pase ilimitado de 24 horas</strong> para convertir todos los archivos que necesites sin límites.
+                            </p>
+                        </div>
+                        <div class="pt-2">
+                            <a href="https://buy.stripe.com/dRmdRa9caeAV1hQbR2enS02" target="_blank" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition transform hover:-translate-y-0.5">
+                                <i class="fa-solid fa-bolt"></i> Obtener Pase 24h Ilimitado (Pago Único)
+                            </a>
+                            <p class="text-xs text-slate-400 mt-2">Pago 100% seguro procesado por Stripe. Acceso instantáneo.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Sección de Seguridad y Privacidad -->
+        <section id="seguridad" class="bg-white border-y border-slate-200 py-12 mb-16">
+            <div class="max-w-4xl mx-auto px-4 text-center">
+                <h2 class="text-2xl font-bold text-slate-900 mb-3">Máxima Privacidad y Seguridad Financiera</h2>
+                <p class="text-slate-600 max-w-2xl mx-auto text-sm leading-relaxed">
+                    Entendemos que los datos de facturación y cobros de tus clientes son extremadamente sensibles. Por ello, este conversor está programado para ejecutarse <strong>íntegramente en tu navegador web (Client-Side)</strong>. Ningún archivo CSV ni dato financiero es enviado, almacenado ni visto en ningún servidor externo. Todo se procesa de forma local en la memoria RAM de tu dispositivo.
+                </p>
+            </div>
+        </section>
+
+        <!-- Sección FAQ (Acordeón) -->
+        <section id="faq" class="max-w-3xl mx-auto px-4 mb-20">
+            <h2 class="text-2xl font-bold text-slate-900 text-center mb-8">Preguntas Frecuentes</h2>
+            <div class="space-y-4">
+                <!-- FAQ 1 -->
+                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <button class="faq-toggle w-full px-6 py-4 text-left font-semibold text-slate-800 flex justify-between items-center focus:outline-none">
+                        <span>¿Qué formato de salida genera para mi gestor?</span>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-sm text-slate-600">
+                        El conversor reorganiza columnas clave de Stripe (como ID de cargo, fecha, importe neto, divisa, cliente y descripción) estandarizándolas en un formato tabular CSV compatible con hojas de cálculo comunes de registro de ingresos para autónomos o plantillas estándar de asesorías en España.
+                    </div>
+                </div>
+                <!-- FAQ 2 -->
+                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <button class="faq-toggle w-full px-6 py-4 text-left font-semibold text-slate-800 flex justify-between items-center focus:outline-none">
+                        <span>¿Cómo funciona el pase de 24 horas tras el pago?</span>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-sm text-slate-600">
+                        Puedes probar la herramienta de forma gratuita con archivos pequeños de hasta 5 filas. Si necesitas procesar archivos grandes, realizas un pago único y obtendrás un <strong>pase ilimitado válido durante 24 horas</strong>. Durante ese tiempo, podrás convertir y descargar todos los archivos que desees en tu navegador sin restricciones ni nuevos pagos.
+                    </div>
+                </div>
+                <!-- FAQ 3 -->
+                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <button class="faq-toggle w-full px-6 py-4 text-left font-semibold text-slate-800 flex justify-between items-center focus:outline-none">
+                        <span>¿Es seguro subir mis datos fiscales aquí?</span>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-sm text-slate-600">
+                        Totalmente seguro. Al no utilizar servidores backend de almacenamiento, la herramienta procesa el archivo usando JavaScript directamente en tu navegador. Una vez cierras o recargas la pestaña, cualquier rastro de los datos desaparece de la memoria.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-8 text-center text-xs text-slate-500">
+        <div class="max-w-6xl mx-auto px-4">
+            <p>&copy; 2026 Stripe2Contable. Herramienta de procesamiento local para autónomos en España.</p>
+        </div>
+    </footer>
+
+    <!-- Lógica JavaScript -->
+    <script>
+        // Elementos del DOM
+        const csvFileInput = document.getElementById('csvFileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileRows = document.getElementById('fileRows');
+        const removeFile = document.getElementById('removeFile');
+        const resultContainer = document.getElementById('resultContainer');
+        const freeSuccessBox = document.getElementById('freeSuccessBox');
+        const successTitle = document.getElementById('successTitle');
+        const successDesc = document.getElementById('successDesc');
+        const paywallBox = document.getElementById('paywallBox');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const activePassBanner = document.getElementById('activePassBanner');
+
+        let parsedDataGlobal = null;
+        let originalFileName = "";
+
+        // 1. Detección de redirección de pago exitoso desde Stripe (ej: ?pago=exito)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('pago') === 'exito') {
+            const expTime = new Date().getTime() + (24 * 60 * 60 * 1000); // 24 horas desde ahora
+            localStorage.setItem('stripe_pass_expires', expTime);
+            // Limpiar la URL para que quede limpia
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // 2. Comprobar si el pase de 24h sigue activo
+        function hasActivePass() {
+            const expTime = localStorage.getItem('stripe_pass_expires');
+            if (!expTime) return false;
+            if (new Date().getTime() > parseInt(expTime)) {
+                localStorage.removeItem('stripe_pass_expires'); // Expirado
+                return false;
+            }
+            return true;
+        }
+
+        // Mostrar banner si el pase está activo
+        if (hasActivePass()) {
+            activePassBanner.classList.remove('hidden');
+        }
+
+        // Manejo de carga de archivos CSV con PapaParse
+        csvFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            originalFileName = file.name;
+            fileName.textContent = file.name;
+            fileInfo.classList.remove('hidden');
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    parsedDataGlobal = results.data;
+                    const totalRows = parsedDataGlobal.length;
+                    fileRows.textContent = `${totalRows} filas detectadas`;
+                    
+                    resultContainer.classList.remove('hidden');
+
+                    const userHasPass = hasActivePass();
+
+                    // Lógica Freemium / Pase de 24h
+                    if (totalRows <= 5 || userHasPass) {
+                        freeSuccessBox.classList.remove('hidden');
+                        paywallBox.classList.add('hidden');
+                        
+                        if (userHasPass) {
+                            successTitle.textContent = "¡Pase de 24h activo (Conversión ilimitada)!";
+                            successDesc.textContent = `Tu archivo contiene ${totalRows} filas. Como tienes el pase activo, puedes descargarlo gratis.`;
+                        } else {
+                            successTitle.textContent = "¡Conversión exitosa (Versión Gratuita)!";
+                            successDesc.textContent = "Tu archivo contiene 5 filas o menos. Puedes descargarlo gratis ahora mismo.";
+                        }
+                    } else {
+                        freeSuccessBox.classList.add('hidden');
+                        paywallBox.classList.remove('hidden');
+                    }
+                },
+                error: function(error) {
+                    alert('Error al leer el archivo CSV: ' + error.message);
+                }
+            });
+        });
+
+        // Botón para eliminar archivo cargado
+        removeFile.addEventListener('click', function() {
+            csvFileInput.value = '';
+            fileInfo.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            freeSuccessBox.classList.add('hidden');
+            paywallBox.classList.add('hidden');
+            parsedDataGlobal = null;
+        });
+
+        // Lógica de transformación y descarga del CSV adaptado para contabilidad
+        downloadBtn.addEventListener('click', function() {
+            if (!parsedDataGlobal) return;
+
+            // Transformación de columnas de Stripe al formato contable estándar para autónomos
+            const transformedData = parsedDataGlobal.map(row => {
+                return {
+                    "Fecha": row["Created (UTC)"] || row["Date"] || row["created"] || "",
+                    "Concepto / Descripcion": row["Description"] || row["description"] || "Cobro Stripe",
+                    "Importe Bruto": row["Gross"] || row["amount"] || "",
+                    "Comision Stripe": row["Fee"] || row["fee"] || "",
+                    "Importe Neto": row["Net"] || row["net"] || "",
+                    "Moneda": row["Currency"] || row["currency"] || "EUR",
+                    "Cliente / Email": row["Customer Email"] || row["customer_email"] || "",
+                    "ID Transaccion": row["id"] || row["Charge ID"] || ""
+                };
+            });
+
+            // Generar nuevo CSV usando PapaParse
+            const csvOutput = Papa.unparse(transformedData);
+            
+            // Crear enlace de descarga local
+            const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'contabilidad_' + originalFileName);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Acordeón para las FAQ
+        const faqToggles = document.querySelectorAll('.faq-toggle');
+        faqToggles.forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                content.classList.toggle('hidden');
+                this.classList.toggle('text-indigo-600');
+            });
+        });
+    </script>
+</body>
+</html>
